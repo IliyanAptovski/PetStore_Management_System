@@ -14,17 +14,22 @@ namespace PetStore
 {
     public partial class Order : Form
     {
-        decimal price = 0;
-        ProductBusiness productBusiness = new ProductBusiness();
-
-        public Order()
-        {
-            InitializeComponent();
-        }
+        private decimal price;
+        private readonly ProductBusiness productBusiness;
+        private readonly string receivedClientId;
 
         public Client GetClient { get; set; }
         public List<Product> GetClientItems { get; set; }
-        public int GetClientId { get; set; }
+        public string GetClientId { get; set; }
+
+        public Order() : this(string.Empty) { }
+
+        public Order(string clientId)
+        {
+            InitializeComponent();
+            productBusiness = new ProductBusiness();
+            receivedClientId = clientId;
+        }
 
         private void lineLbl_Click(object sender, EventArgs e)
         {
@@ -43,17 +48,19 @@ namespace PetStore
 
         private void Order_Load(object sender, EventArgs e)
         {
-
-            ShoppingCart shoppingCart = new ShoppingCart();
-            shoppingCart.Close();
-
-            // Display the price
-            foreach (var item in GetClientItems)
+            // Close shopping cart if needed
+            using (ShoppingCart shoppingCart = new ShoppingCart())
             {
-                price += item.Price * item.Count;
+                shoppingCart.Close();
             }
-            subtotalLbl.Text = $"${price:f2}";
-            totalLbl.Text = $"${(30 + price):f2}";
+
+            // Calculate total price
+            if (GetClientItems != null && GetClientItems.Any())
+            {
+                price = GetClientItems.Sum(item => item.Price * item.Count);
+                subtotalLbl.Text = $"${price:F2}";
+                totalLbl.Text = $"${(30 + price):F2}";
+            }
         }
 
         private void shippingTextLbl_Click(object sender, EventArgs e)
@@ -68,29 +75,28 @@ namespace PetStore
 
         private void finalizeBtn_Click(object sender, EventArgs e)
         {
-            // Reset the price
+            // Reset price and finalize order
             price = 0;
-
-            // Transfer client id
-            FinalizedOrder finalizedOrder = new FinalizedOrder();
-            finalizedOrder.GetClientId = this.GetClientId;
+            var finalizedOrder = new FinalizedOrder { FirebaseClientId = GetClientId };
             finalizedOrder.Show();
-
-            this.Close();
+            Close();
         }
 
         // Delete data from the database
-        private void deleteBtn_Click(object sender, EventArgs e)
+        private async void deleteBtn_Click(object sender, EventArgs e)
         {
-            productBusiness.Delete(this.GetClientId);
-            this.Close();
+            if (!string.IsNullOrEmpty(receivedClientId))
+            {
+                await productBusiness.DeletePetByClientIdAsync(receivedClientId);
+            }
+            Close();
         }
 
         // Update client personal info
         private void updateBtn_Click(object sender, EventArgs e)
         {
             UpdateOrder updateOrder = new UpdateOrder();
-            updateOrder.GetClientId = this.GetClientId;
+            updateOrder.FirebaseClientId = this.receivedClientId;
             updateOrder.Show();
             this.Close();
         }

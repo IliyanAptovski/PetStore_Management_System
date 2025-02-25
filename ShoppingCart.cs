@@ -1,5 +1,7 @@
-﻿using PetStore.Business;
+﻿using Newtonsoft.Json;
+using PetStore.Business;
 using PetStore.Data.Models;
+using RestSharp;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -14,57 +16,101 @@ namespace PetStore
 {
     public partial class ShoppingCart : Form
     {
+        public string GetClientID { get; set; }
+
+        private RestClient _client;
+
         private ProductBusiness productBusiness = new ProductBusiness();
         List<Product> products = new List<Product>();
         public ShoppingCart()
         {
             InitializeComponent();
+            InitializeFirebaseClient();  // Initialize the Firebase client
         }
+
+        private void InitializeFirebaseClient()
+        {
+            string firebaseUrl = "https://petstore-management-system-default-rtdb.europe-west1.firebasedatabase.app/";
+
+            // Initialize the RestClient to send requests to Firebase
+            _client = new RestClient(firebaseUrl);
+        }
+
         public List<Product> GetProducts { get; set; }
         private void lineLbl_Click(object sender, EventArgs e)
         {
 
         }
 
-        private void buyBtn_Click(object sender, EventArgs e)
+        private async void buyBtn_Click(object sender, EventArgs e)
         {
-            // Create a new instance of Order form
-            Order order = new Order();
-
-            // Create new clinet
-            Client client = new Client(nameRichTextBox.Text, lastNameRichTextBox.Text, emailRichTextBox.Text);
-
-            // Transfer client and products data
-            order.GetClient = client;
-            order.GetClientItems = products;
-
-            // Add client to the database
-            productBusiness.Add(client);
-
-            /// Connect the data using ClientId
-            // Get current client id
-            int id = client.GetCurrentId();
-            foreach (var item in products)
+            try
             {
-                item.ClientId = id;
+                // Create new client
+                Client client = new Client(nameRichTextBox.Text, lastNameRichTextBox.Text, emailRichTextBox.Text);
+
+                // Create new list of products
+                List<Product> clientProducts = new List<Product>(products);
+
+                // Generate unique ClientId
+                string clientId = Guid.NewGuid().ToString();
+
+                // Combine client and product data for Firebase
+                var pet = new
+                {
+                    ClientId = clientId,
+                    ClientName = client.Name,
+                    ClientLastName = client.LastName,
+                    ClientMail = client.Mail,
+                    Products = clientProducts.Select(p => new
+                    {
+                        ProductId = Guid.NewGuid().ToString(),
+                        ProductName = p.Name,
+                        ProductPrice = p.Price,
+                        ProductCount = p.Count
+                    }).ToList()
+                };
+
+                GetClientID = clientId; // Store the client ID
+
+                // Serialize pet data for Firebase
+                var petJson = JsonConvert.SerializeObject(pet);
+
+                // Send the data to Firebase
+                var request = new RestRequest("pets.json", Method.Post);
+                request.AddParameter("application/json", petJson, ParameterType.RequestBody);
+                var response = await _client.ExecuteAsync(request);
+
+                if (response.IsSuccessful)
+                {
+                    // Create order with the correct Client ID
+                    Order order = new Order(GetClientID)
+                    {
+                        GetClient = client,
+                        GetClientItems = clientProducts
+                    };
+
+                    order.Show();
+
+                    // Clear the products list
+                    products.Clear();
+
+                    // Close current form
+                    this.Close();
+                }
+                else
+                {
+                    MessageBox.Show("Error: " + response.ErrorMessage);
+                }
             }
-            
-            // Get the current client id
-            order.GetClientId = id;
-            
-            
-            foreach (Product product in products)
+            catch (Exception ex)
             {
-                productBusiness.Add(product);
+                MessageBox.Show("An error occurred: " + ex.Message);
             }
-            
-            order.Show();
-
-            products.Clear();
-
-            // Close current form
-            this.Close();
         }
+
+
+
 
         // Display order details
         private void ShoppingCart_Load(object sender, EventArgs e)
