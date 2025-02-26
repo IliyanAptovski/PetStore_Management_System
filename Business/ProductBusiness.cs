@@ -61,69 +61,19 @@ namespace PetStore.Business
             }
         }
 
-        public async Task<DataTable> GetPetAsync(string clientId)
+        public async Task<Dictionary<string, dynamic>> GetPetsFromFirebaseAsync()
         {
-            try
+            var request = new RestRequest("pets.json", Method.Get);  // Get all pets
+            var response = await _client.ExecuteAsync(request);
+
+            if (response.IsSuccessful && !string.IsNullOrEmpty(response.Content))
             {
-                // Make the request to Firebase to fetch data for a specific clientId
-                var request = new RestRequest($"pets/{clientId}.json", Method.Get);  // Adjust path if necessary
-                var response = await _client.ExecuteAsync(request);
-
-                if (response.IsSuccessful)
-                {
-                    // Log the response content to see what we are getting back
-                    Console.WriteLine("Response Content: " + response.Content);
-
-                    // Deserialize the response into a Client object
-                    var client = JsonConvert.DeserializeObject<Client>(response.Content);
-
-                    // Check if the client data exists
-                    if (client != null && client.Products != null && client.Products.Count > 0)
-                    {
-                        // Create DataTable to hold the data
-                        var dataTable = new DataTable();
-                        dataTable.Columns.Add("ClientName", typeof(string));
-                        dataTable.Columns.Add("ClientLastName", typeof(string));
-                        dataTable.Columns.Add("ClientMail", typeof(string));
-                        dataTable.Columns.Add("ProductName", typeof(string));
-                        dataTable.Columns.Add("ProductPrice", typeof(decimal));
-                        dataTable.Columns.Add("ProductCount", typeof(int));
-
-                        // Populate DataTable with the retrieved data
-                        foreach (var product in client.Products)
-                        {
-                            dataTable.Rows.Add(
-                                client.Name,
-                                client.LastName,
-                                client.Mail,
-                                product.Name,
-                                product.Price,
-                                product.Count
-                            );
-                        }
-
-                        return dataTable;
-                    }
-                    else
-                    {
-                        Console.WriteLine("No products found for client ID: " + clientId);
-                        return null;
-                    }
-                }
-                else
-                {
-                    Console.WriteLine("Failed to fetch data. Status Code: " + response.StatusCode);
-                    return null;
-                }
+                var pets = JsonConvert.DeserializeObject<Dictionary<string, dynamic>>(response.Content);
+                return pets;
             }
-            catch (Exception ex)
-            {
-                // Handle exceptions (e.g., network issues)
-                Console.WriteLine("Error fetching data: " + ex.Message);
-                return null;
-            }
+
+            return null;
         }
-
 
 
 

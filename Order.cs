@@ -77,9 +77,10 @@ namespace PetStore
         {
             // Reset price and finalize order
             price = 0;
-            var finalizedOrder = new FinalizedOrder { FirebaseClientId = GetClientId };
+            FinalizedOrder finalizedOrder = new FinalizedOrder();
+            finalizedOrder.FirebaseClientId = this.receivedClientId;
             finalizedOrder.Show();
-            Close();
+            this.Close();
         }
 
         // Delete data from the database
