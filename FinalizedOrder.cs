@@ -3,6 +3,7 @@ using System.Data;
 using System.Linq;
 using System.Windows.Forms;
 using PetStore.Business;
+using Newtonsoft.Json;
 
 namespace PetStore
 {
@@ -29,22 +30,62 @@ namespace PetStore
             orderNumberTextLbl.Text = $"Order #{new Random().Next(100000, 999999)}";
 
             // Fetch client order details from Firebase
-            var petsDataTable = await _productBusiness.GetPetAsync(FirebaseClientId);
+            var pets = await _productBusiness.GetPetsFromFirebaseAsync();
 
-            if (petsDataTable == null || petsDataTable.Rows.Count == 0)
+            if (pets != null)
             {
-                MessageBox.Show("No order data found. Please check your data or try again later.");
-                return;
+                // Find the pet by matching the ClientId
+                var petToUpdate = pets.FirstOrDefault(p => p.Value.ClientId == FirebaseClientId);
+
+                if (petToUpdate.Key != null)
+                {
+                    // Data found, now display in the DataGridView
+                    var petData = petToUpdate.Value;
+
+                    // Create a DataTable to hold the client and product data
+                    DataTable dataTable = new DataTable();
+
+                    // Add columns to the DataTable
+                    dataTable.Columns.Add("ClientName", typeof(string));
+                    dataTable.Columns.Add("ClientLastName", typeof(string));
+                    dataTable.Columns.Add("ClientMail", typeof(string));
+                    dataTable.Columns.Add("ProductName", typeof(string));
+                    dataTable.Columns.Add("ProductPrice", typeof(decimal));
+                    dataTable.Columns.Add("ProductCount", typeof(int));
+
+                    // Extract client info and products
+                    string clientName = petData.ClientName;
+                    string clientLastName = petData.ClientLastName;
+                    string clientMail = petData.ClientMail;
+
+                    var products = petData.Products;
+                    if (products != null)
+                    {
+                        foreach (var product in products)
+                        {
+                            string productName = product.ProductName;
+                            decimal productPrice = product.ProductPrice;
+                            int productCount = product.ProductCount;
+
+                            // Add rows to DataTable for each product
+                            dataTable.Rows.Add(clientName, clientLastName, clientMail, productName, productPrice, productCount);
+                        }
+                    }
+
+                    // Bind the DataTable to the DataGridView
+                    orderDataGridView.DataSource = dataTable;
+                    orderDataGridView.ReadOnly = true;
+                    orderDataGridView.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+                }
+                else
+                {
+                    MessageBox.Show("No order data found for the given client.");
+                }
             }
-
-            // Extract relevant columns into a new DataTable for display
-            var displayTable = petsDataTable.DefaultView.ToTable(false,
-                "ClientName", "ClientLastName", "ClientMail", "ProductName", "ProductPrice", "ProductCount");
-
-            // Bind the processed data to the DataGridView
-            orderDataGridView.DataSource = displayTable;
-            orderDataGridView.ReadOnly = true;
-            orderDataGridView.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            else
+            {
+                MessageBox.Show("Error: Unable to fetch data from Firebase.");
+            }
         }
     }
 }
