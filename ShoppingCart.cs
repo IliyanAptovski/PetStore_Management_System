@@ -46,61 +46,79 @@ namespace PetStore
         {
             try
             {
-                // Create new client
-                Client client = new Client(nameRichTextBox.Text, lastNameRichTextBox.Text, emailRichTextBox.Text);
-
-                // Create new list of products
-                List<Product> clientProducts = new List<Product>(products);
-
-                // Generate unique ClientId
-                string clientId = Guid.NewGuid().ToString();
-
-                // Combine client and product data for Firebase
-                var pet = new
+                if (string.IsNullOrWhiteSpace(nameRichTextBox.Text) ||
+                    string.IsNullOrWhiteSpace(lastNameRichTextBox.Text) ||
+                    string.IsNullOrWhiteSpace(emailRichTextBox.Text) ||
+                    products == null || !products.Any())
                 {
-                    ClientId = clientId,
+                    MessageBox.Show("Please enter all client details and add at least one product.");
+                    return;
+                }
+
+                // Create new client instance
+                var client = new Client
+                {
+                    Name = nameRichTextBox.Text,
+                    LastName = lastNameRichTextBox.Text,
+                    Mail = emailRichTextBox.Text
+                };
+
+                // Prepare product list for Firebase
+                var clientProducts = products.Select(p => new
+                {
+                    ProductId = Guid.NewGuid().ToString(), // Assign unique Product ID
+                    ProductName = p.Name,
+                    ProductPrice = p.Price,
+                    ProductCount = p.Count
+                }).ToList();
+
+                // Create Firebase data object
+                var petData = new
+                {
                     ClientName = client.Name,
                     ClientLastName = client.LastName,
                     ClientMail = client.Mail,
-                    Products = clientProducts.Select(p => new
-                    {
-                        ProductId = Guid.NewGuid().ToString(),
-                        ProductName = p.Name,
-                        ProductPrice = p.Price,
-                        ProductCount = p.Count
-                    }).ToList()
+                    Products = clientProducts
                 };
 
-                GetClientID = clientId; // Store the client ID
+                // Serialize data for Firebase
+                var petJson = JsonConvert.SerializeObject(petData);
 
-                // Serialize pet data for Firebase
-                var petJson = JsonConvert.SerializeObject(pet);
-
-                // Send the data to Firebase
+                // Send POST request to Firebase (new entry)
                 var request = new RestRequest("pets.json", Method.Post);
                 request.AddParameter("application/json", petJson, ParameterType.RequestBody);
                 var response = await _client.ExecuteAsync(request);
 
-                if (response.IsSuccessful)
+                if (response.IsSuccessful && !string.IsNullOrEmpty(response.Content))
                 {
-                    // Create order with the correct Client ID
-                    Order order = new Order(GetClientID)
+                    // Extract Firebase-generated ClientId
+                    var firebaseResponse = JsonConvert.DeserializeObject<Dictionary<string, string>>(response.Content);
+                    if (firebaseResponse != null && firebaseResponse.ContainsKey("name"))
+                    {
+                        GetClientID = firebaseResponse["name"]; // Firebase-generated ID
+                    }
+                    else
+                    {
+                        MessageBox.Show("Failed to retrieve client ID from Firebase.");
+                        return;
+                    }
+
+                    // Create order instance
+                    var order = new Order(GetClientID)
                     {
                         GetClient = client,
-                        GetClientItems = clientProducts
+                        GetClientItems = products
                     };
 
                     order.Show();
 
-                    // Clear the products list
+                    // Clear product list and close the form
                     products.Clear();
-
-                    // Close current form
                     this.Close();
                 }
                 else
                 {
-                    MessageBox.Show("Error: " + response.ErrorMessage);
+                    MessageBox.Show("Error saving order: " + response.ErrorMessage);
                 }
             }
             catch (Exception ex)
@@ -109,16 +127,13 @@ namespace PetStore
             }
         }
 
-
-
-
         // Display order details
         private void ShoppingCart_Load(object sender, EventArgs e)
         {
             products.AddRange(GetProducts);
             foreach (Product product in GetProducts)
             {
-                itemsRichTextBox.AppendText($"{product.Dispaly()}\n");
+                itemsRichTextBox.AppendText($"{product.Display()}\n");
             }
         }
 

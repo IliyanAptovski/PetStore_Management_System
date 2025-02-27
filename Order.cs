@@ -88,10 +88,15 @@ namespace PetStore
         {
             if (!string.IsNullOrEmpty(receivedClientId))
             {
-                await productBusiness.DeletePetByClientIdAsync(receivedClientId);
+                bool isDeleted = await productBusiness.DeletePetByClientIdAsync(receivedClientId);
+            }
+            else
+            {
+                MessageBox.Show("Error: Client ID is missing.");
             }
             Close();
         }
+
 
         // Update client personal info
         private void updateBtn_Click(object sender, EventArgs e)

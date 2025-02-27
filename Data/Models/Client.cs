@@ -1,54 +1,34 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace PetStore.Data.Models
 {
     public class Client
     {
-        ProductContext clientContext = new ProductContext();
+        public string ClientId { get; set; } = Guid.NewGuid().ToString(); // Firebase uses string IDs
 
-        [Key]
-        public int ClientId { get; set; }
+        [JsonProperty("clientName")]
         public string Name { get; set; }
+
+        [JsonProperty("clientLastName")]
         public string LastName { get; set; }
+
+        [JsonProperty("clientMail")]
         public string Mail { get; set; }
-        public virtual ICollection<Product> Products { get; set; }
+
+        [JsonProperty("products")]
+        public List<Product> Products { get; set; } = new List<Product>(); // Ensure Products is always initialized
 
         public Client() { }
 
-        public Client(string name, string lastName, string mail)
+        public Client(string name, string lastName, string mail, List<Product> products = null)
         {
-            this.Name = name;
-            this.LastName = lastName;
-            this.Mail = mail;
-        }
-
-        public int GetCurrentId()
-        {
-            // Starting id
-            int Id = 1;
-            using (clientContext = new ProductContext())
-            {
-                // Check for empty database
-                if (clientContext.Clients.ToList().Count != 0)
-                {
-                    // Loop through all clients and get the highest id
-                    foreach (var item in clientContext.Clients.ToList())
-                    {
-                        if (item.ClientId > Id)
-                        {
-                            Id = item.ClientId;
-                        }
-                    }
-                } else return Id;
-                
-            }
-            return Id;
+            ClientId = Guid.NewGuid().ToString(); // Generates unique string ID for Firebase
+            Name = name;
+            LastName = lastName;
+            Mail = mail;
+            Products = products ?? new List<Product>();
         }
     }
 }
