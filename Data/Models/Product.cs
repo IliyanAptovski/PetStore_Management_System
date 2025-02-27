@@ -1,45 +1,29 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace PetStore.Data.Models
 {
     public class Product
     {
-        [Key]
-        public int Id { get; set; }
+        public string Id { get; set; } // Firebase uses string IDs
         public string Name { get; set; }
         public decimal Price { get; set; }
         public int Count { get; set; }
-        public int ClientId { get; set; }
-
-        [ForeignKey("ClientId")]
-        public virtual Client Client { get; set; }
+        public string ClientId { get; set; } // Acts as a reference, no ForeignKey needed
 
         public Product() { }
 
-        public Product(string name, decimal price, int count)
+        public Product(string name, decimal price, int count, string clientId = null)
         {
-            this.Name = name;
-            this.Price = price;
-            this.Count = count;
+            Id = Guid.NewGuid().ToString(); // Generates a unique string ID
+            Name = name;
+            Price = price;
+            Count = count;
+            ClientId = clientId;
         }
 
-        public Product(string name, decimal price, int count, int clientId)
+        public string Display()
         {
-            this.Name = name;
-            this.Price = price;
-            this.Count = count;
-            this.ClientId = clientId;
-        }
-
-        public string Dispaly()
-        {
-            return $"{this.Name.Replace("\n", " ")}\nQuantity [{this.Count}]\nPrice for one: ${this.Price:f2}";
+            return $"{Name.Replace("\n", " ")}\nQuantity [{Count}]\nPrice for one: ${Price:F2}";
         }
     }
 }

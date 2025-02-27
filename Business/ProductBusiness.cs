@@ -63,19 +63,41 @@ namespace PetStore.Business
 
         public async Task<Dictionary<string, dynamic>> GetPetsFromFirebaseAsync()
         {
-            var request = new RestRequest("pets.json", Method.Get);  // Get all pets
-            var response = await _client.ExecuteAsync(request);
-
-            if (response.IsSuccessful && !string.IsNullOrEmpty(response.Content))
+            try
             {
-                var pets = JsonConvert.DeserializeObject<Dictionary<string, dynamic>>(response.Content);
-                return pets;
+                var request = new RestRequest("pets.json", Method.Get);  // Get all pets
+                var response = await _client.ExecuteAsync(request);
+
+                // Log the raw response content for debugging
+                Console.WriteLine("Firebase Response Content: " + response.Content);
+
+                if (response.IsSuccessful && !string.IsNullOrEmpty(response.Content))
+                {
+                    // Try deserializing the response content
+                    try
+                    {
+                        var pets = JsonConvert.DeserializeObject<Dictionary<string, dynamic>>(response.Content);
+                        return pets;
+                    }
+                    catch (JsonException jsonEx)
+                    {
+                        Console.WriteLine("Error deserializing Firebase response: " + jsonEx.Message);
+                        return null;
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Failed to fetch data from Firebase. Status Code: " + response.StatusCode);
+                    return null;
+                }
             }
-
-            return null;
+            catch (Exception ex)
+            {
+                // Handle any network issues or other errors
+                Console.WriteLine("Error fetching pets from Firebase: " + ex.Message);
+                return null;
+            }
         }
-
-
 
         public async Task UpdatePetAsync(string petId, Product updatedProduct, Client updatedClient)
         {
@@ -116,44 +138,28 @@ namespace PetStore.Business
         }
 
 
-        public async Task DeletePetByClientIdAsync(string clientId)
+        public async Task<bool> DeletePetByClientIdAsync(string clientId)
         {
-            if (string.IsNullOrEmpty(clientId) || _client == null)
+            try
             {
-                return;
+                var request = new RestRequest($"pets/{clientId}.json", Method.Delete);
+                var response = await _client.ExecuteAsync(request);
+
+                if (response.IsSuccessful)
+                {
+                    return true;
+                }
+                else
+                {
+                    Console.WriteLine("Failed to delete data. Status Code: " + response.StatusCode);
+                    return false;
+                }
             }
-
-            // Fetch all pets from Firebase
-            var request = new RestRequest("pets.json", Method.Get);
-            var response = await _client.ExecuteAsync(request);
-
-            if (!response.IsSuccessful || string.IsNullOrEmpty(response.Content))
+            catch (Exception ex)
             {
-                return;
+                Console.WriteLine("Error deleting data: " + ex.Message);
+                return false;
             }
-
-            // Deserialize JSON response
-            var pets = JsonConvert.DeserializeObject<Dictionary<string, dynamic>>(response.Content);
-
-            if (pets == null || pets.Count == 0)
-            {
-                return;
-            }
-
-            // Find the pet entry by matching ClientId
-            var petToDelete = pets.FirstOrDefault(p => p.Value.ClientId != null && p.Value.ClientId.ToString() == clientId);
-
-            if (string.IsNullOrEmpty(petToDelete.Key))
-            {
-                return;
-            }
-
-            // Send DELETE request to remove pet from Firebase
-            var deleteRequest = new RestRequest($"pets/{petToDelete.Key}.json", Method.Delete);
-            await _client.ExecuteAsync(deleteRequest);
         }
-
-
-
     }
 }
