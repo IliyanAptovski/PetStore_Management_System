@@ -17,7 +17,6 @@ An ORM-based Windows Forms application for managing pet store inventory, built w
 - **C#** — Programming language
 - **Entity Framework** — Object-relational mapping (ORM) for data access
 - **Firebase** — Cloud-hosted database
-- **Postman** — API testing tool
 
 ---
 
